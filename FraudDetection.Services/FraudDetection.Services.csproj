@@ -6,4 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\FraudDetection.Data\FraudDetection.Data.csproj" />
+    <ProjectReference Include="..\FraudDetection.Models\FraudDetection.Models.csproj" />
+  </ItemGroup>
+
 </Project>
