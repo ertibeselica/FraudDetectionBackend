@@ -14,7 +14,7 @@ namespace FraudDetection.Data.Entity
         }
 
         public DbSet<Models.Transaction> Transactions { get; set; }
-        public DbSet<AnomalyLog> AnomalyLogs { get; set; }
+        public DbSet<Models.AnomalyLog> AnomalyLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

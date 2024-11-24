@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FraudDetection.Data\FraudDetection.Data.csproj" />
+    <ProjectReference Include="..\FraudDetection.Services\FraudDetection.Services.csproj" />
   </ItemGroup>
 
 </Project>
