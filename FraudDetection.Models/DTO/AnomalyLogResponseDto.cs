@@ -1,25 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace FraudDetection.Models
+namespace FraudDetection.Models.DTO
 {
-    [Table("AnomalyLogs")]
-    public class AnomalyLog
+    public class AnomalyLogResponseDto
     {
         public int Id { get; set; }
         public int TransactionId { get; set; }
         public double Score { get; set; }
         public bool Decision { get; set; }
         public DateTime CreatedAt { get; set; }
-
-        [JsonIgnore]
-        [NotMapped]
-        public Transaction Transaction { get; set; }
-
     }
 }

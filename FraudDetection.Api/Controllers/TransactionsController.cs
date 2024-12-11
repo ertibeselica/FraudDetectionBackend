@@ -1,5 +1,7 @@
-﻿using FraudDetection.Data.Entity;
+﻿using AutoMapper;
+using FraudDetection.Data.Entity;
 using FraudDetection.Models;
+using FraudDetection.Models.DTO;
 using FraudDetection.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -14,12 +16,14 @@ namespace FraudDetection.Api.Controllers
         private readonly ITransactionService _transactionService;
         private readonly IAnomalyLogService _anomalyLogService;
         private readonly IFraudDetectionService _fraudDetectionService;
+        private readonly IMapper _mapper;
 
-        public TransactionsController(ITransactionService transactionService,IAnomalyLogService anomalyLogService, IFraudDetectionService fraudDetectionService)
+        public TransactionsController(ITransactionService transactionService,IAnomalyLogService anomalyLogService, IFraudDetectionService fraudDetectionService,IMapper mapper)
         {
             _transactionService = transactionService;
-            _anomalyLogService = anomalyLogService;
+            _anomalyLogService = anomalyLogService;            
             _fraudDetectionService = fraudDetectionService;
+            _mapper = mapper;
         }
 
         [HttpGet("all")]
@@ -41,30 +45,48 @@ namespace FraudDetection.Api.Controllers
         }
 
         [HttpPost("process")]
-        public async Task<IActionResult> ProcessTransaction([FromBody] Transaction transaction)
+        public async Task<IActionResult> ProcessTransaction([FromBody] TransactionDto transaction)
         {
             if (transaction == null) 
                 return BadRequest("Transaction data is required.");
+
 
             try
             {
                 var (isFraud, score) = await _fraudDetectionService.PredictFraudAsync(transaction);
 
-                transaction.IsFraud = isFraud;
+                var trx = _mapper.Map<Models.Transaction>(transaction);
+                trx.IsFraud = isFraud;
 
-                var createdTrx =  await _transactionService.CreateTransaction(transaction);
+                var createdTrx =  await _transactionService.CreateTransaction(trx);
 
                 var anomalyLog = new AnomalyLog
                 {
-                    TransactionId = transaction.Id,
+                    TransactionId = createdTrx.Id,
                     Score = score,
                     Decision = isFraud,
                     CreatedAt = DateTime.UtcNow
                 };
 
-                var createdAnomalyLog = _anomalyLogService.CreateAnomaly(anomalyLog);
+                var createdAnomalyLog = await _anomalyLogService.CreateAnomaly(anomalyLog);
 
-                return Ok(new { createdTrx, createdAnomalyLog });
+                var transactionDto = new TransactionResponseDto
+                {
+                    Id = createdTrx.Id,
+                    Amount = createdTrx.Amount,   
+                    IsFraud = createdTrx.IsFraud
+                };
+
+                var anomalyLogDto = new AnomalyLogResponseDto
+                {
+                    Id = createdAnomalyLog.Id,
+                    TransactionId = createdAnomalyLog.TransactionId,
+                    Score = createdAnomalyLog.Score,
+                    Decision = createdAnomalyLog.Decision,
+                    CreatedAt = createdAnomalyLog.CreatedAt
+                };
+
+                return Ok(new { transactionDto, anomalyLogDto });
             }
             catch (Exception ex)
             {

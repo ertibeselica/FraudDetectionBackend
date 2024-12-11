@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace FraudDetection.Models
@@ -16,6 +17,9 @@ namespace FraudDetection.Models
         public string Location { get; set; }
         public string Device { get; set; }
         public bool? IsFraud { get; set; }
+
+        [JsonIgnore]
+        [NotMapped]
         public List<AnomalyLog> AnomalyLogs { get; set; }
     }
 }

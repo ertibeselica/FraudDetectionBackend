@@ -1,3 +1,5 @@
+using AutoMapper;
+using FraudDetection.Api;
 using FraudDetection.Data.AnomalyLog;
 using FraudDetection.Data.Entity;
 using FraudDetection.Data.Transaction;
@@ -25,6 +27,22 @@ builder.Services.AddScoped<IAnomalyLogRepository, AnomalyLogRepository>();
 builder.Services.AddTransient<ITransactionService, TransactionService>();
 builder.Services.AddTransient<IAnomalyLogService, AnomalyLogService>();
 builder.Services.AddTransient<IFraudDetectionService, FraudDetectionService>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp",
+        builder =>
+        {
+            builder.WithOrigins("http://localhost:5173") // Your React app's URL
+                   .AllowAnyHeader()
+                   .AllowAnyMethod();
+        });
+});
+
+var config = new MapperConfiguration(c => {
+    c.AddProfile<DefaultAutoMapperProfile>();
+});
+
+builder.Services.AddSingleton(s => config.CreateMapper());
 
 var app = builder.Build();
 
@@ -34,6 +52,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseCors("AllowReactApp");
 
 app.UseHttpsRedirection();
 

@@ -8,6 +8,6 @@ namespace FraudDetection.Services
 {
     public interface IFraudDetectionService
     {
-        Task<(bool isFraud, double score)> PredictFraudAsync(Models.Transaction transaction);
+        Task<(bool isFraud, double score)> PredictFraudAsync(Models.DTO.TransactionDto transaction);
     }
 }
