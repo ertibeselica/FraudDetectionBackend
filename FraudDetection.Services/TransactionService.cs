@@ -45,5 +45,23 @@ namespace FraudDetection.Services
             var updatedTrx = await _transactionRepository.Update(transaction);
             return updatedTrx;
         }
+
+        public async Task<IEnumerable<Transaction>> GetSimilarTransactions(int transactionId)
+        {
+            var transaction = await GetTransactionById(transactionId);
+            if (transaction == null)
+                throw new KeyNotFoundException($"Transaction with ID {transactionId} not found.");
+
+            var allTransactions = await GetTransactions();
+
+            return allTransactions.Where(t =>
+                (t.Id != transaction.Id) &&
+                (t.Location == transaction.Location || t.Device == transaction.Device) &&
+                (t.Amount >= transaction.Amount * (decimal)0.8 && t.Amount <= transaction.Amount * (decimal)1.2) &&
+                (t.Time >= transaction.Time.AddDays(-30))
+            )
+            .OrderByDescending(t => t.Time)
+            .Take(10);
+        }
     }
 }

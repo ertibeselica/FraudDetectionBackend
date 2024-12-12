@@ -13,6 +13,8 @@ namespace FraudDetection.Services
         Task<Models.Transaction> CreateTransaction(Models.Transaction transaction);
         Task<Models.Transaction> UpdateTransaction(Models.Transaction transaction);
         Task<bool> DeleteTransaction(int transactiondId);
+        Task<IEnumerable<Models.Transaction>> GetSimilarTransactions(int transactionId);
+
 
     }
 }

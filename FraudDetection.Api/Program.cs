@@ -17,6 +17,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHttpClient();
+builder.Services.AddSignalR();
+
 
 // Register DbContext with PostgreSQL connection
 builder.Services.AddDbContext<FraudDetectionDbContext>(options =>
@@ -29,14 +31,18 @@ builder.Services.AddTransient<IAnomalyLogService, AnomalyLogService>();
 builder.Services.AddTransient<IFraudDetectionService, FraudDetectionService>();
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowReactApp",
+    options.AddPolicy("AllowAll",
         builder =>
         {
             builder.WithOrigins("http://localhost:5173") // Your React app's URL
                    .AllowAnyHeader()
-                   .AllowAnyMethod();
+                   .AllowAnyMethod()
+                   .AllowCredentials();
         });
 });
+
+builder.Logging.AddConsole();
+builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
 var config = new MapperConfiguration(c => {
     c.AddProfile<DefaultAutoMapperProfile>();
@@ -53,12 +59,16 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors("AllowReactApp");
+app.UseCors("AllowAll");
+
+app.UseRouting();
 
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHub<TransactionHub>("/transactionHub");
 
 app.Run();

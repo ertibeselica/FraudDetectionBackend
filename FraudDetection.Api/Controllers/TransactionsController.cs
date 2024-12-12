@@ -5,6 +5,7 @@ using FraudDetection.Models.DTO;
 using FraudDetection.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace FraudDetection.Api.Controllers
@@ -17,13 +18,15 @@ namespace FraudDetection.Api.Controllers
         private readonly IAnomalyLogService _anomalyLogService;
         private readonly IFraudDetectionService _fraudDetectionService;
         private readonly IMapper _mapper;
+        private readonly IHubContext<TransactionHub> _hubContext;
 
-        public TransactionsController(ITransactionService transactionService,IAnomalyLogService anomalyLogService, IFraudDetectionService fraudDetectionService,IMapper mapper)
+        public TransactionsController(ITransactionService transactionService, IAnomalyLogService anomalyLogService, IFraudDetectionService fraudDetectionService, IMapper mapper, IHubContext<TransactionHub> hubContext)
         {
             _transactionService = transactionService;
-            _anomalyLogService = anomalyLogService;            
+            _anomalyLogService = anomalyLogService;
             _fraudDetectionService = fraudDetectionService;
             _mapper = mapper;
+            _hubContext = hubContext;
         }
 
         [HttpGet("all")]
@@ -86,13 +89,94 @@ namespace FraudDetection.Api.Controllers
                     CreatedAt = createdAnomalyLog.CreatedAt
                 };
 
+                await _hubContext.Clients.All.SendAsync("ReceiveTransaction", createdTrx);
+
+                // If fraudulent, send fraud alert
+                if (isFraud)
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveFraudAlert", createdTrx);
+                }
+
                 return Ok(new { transactionDto, anomalyLogDto });
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "An error occurred while processing the transaction.", details = ex.Message });
             }
-        }        
+        }
+
+        [HttpGet("similar/{id}")]
+        public async Task<IActionResult> GetSimilarTransactions(int id)
+        {
+            try
+            {
+                var similarTransactions = await _transactionService.GetSimilarTransactions(id);
+                return Ok(similarTransactions);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while fetching similar transactions.", details = ex.Message });
+            }
+        }
+
+        [HttpPost("batch")]
+        public async Task<IActionResult> ProcessBatchTransactions([FromBody] BatchTransactionRequest request)
+        {
+            try
+            {
+                var results = new List<(bool Success, bool IsFraud)>();
+
+                foreach (var transaction in request.Transactions)
+                {
+                    try
+                    {
+                        var (isFraud, score) = await _fraudDetectionService.PredictFraudAsync(transaction);
+                        var trx = _mapper.Map<Models.Transaction>(transaction);
+                        trx.IsFraud = isFraud;
+                        await _transactionService.CreateTransaction(trx);
+
+                        var anomalyLog = new AnomalyLog
+                        {
+                            TransactionId = trx.Id,
+                            Score = score,
+                            Decision = isFraud,
+                            CreatedAt = DateTime.UtcNow
+                        };
+
+                        var createdAnomalyLog = await _anomalyLogService.CreateAnomaly(anomalyLog);
+
+
+                        // Send real-time update
+                        await _hubContext.Clients.All.SendAsync("ReceiveTransaction", trx);
+                        if (isFraud)
+                        {
+                            await _hubContext.Clients.All.SendAsync("ReceiveFraudAlert", trx);
+                        }
+
+                        results.Add((true, isFraud));
+                    }
+                    catch
+                    {
+                        results.Add((false, false));
+                    }
+                }
+
+                return Ok(new
+                {
+                    Successful = results.Count(r => r.Success),
+                    Failed = results.Count(r => !r.Success),
+                    Fraudulent = results.Count(r => r.Success && r.IsFraud)
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to process batch", details = ex.Message });
+            }
+        }
     }
 }
 
